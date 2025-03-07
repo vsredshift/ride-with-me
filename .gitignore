@@ -3,6 +3,11 @@
 # dependencies
 node_modules/
 
+# AI, IDE, Git
+.qodo
+.vscode
+.gitattributes
+
 # Expo
 .expo/
 dist/
