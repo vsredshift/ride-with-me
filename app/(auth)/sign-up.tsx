@@ -7,6 +7,7 @@ import InputField from "@/components/InputField";
 import CustomButton from "@/components/CustomButton";
 import OAuth from "@/components/OAuth";
 import { icons, images } from "@/constants";
+import { fetchAPI } from "@/lib/fetch";
 
 const SignUpScreen = () => {
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -57,6 +58,14 @@ const SignUpScreen = () => {
       // If verification was completed, set the session to active
       // and redirect the user
       if (signUpAttempt.status === "complete") {
+        await fetchAPI("/(api)/user/", {
+          method: "POST",
+          body: JSON.stringify({
+            name,
+            email: emailAddress,
+            clerkId: signUpAttempt.createdUserId,
+          }),
+        });
         await setActive({ session: signUpAttempt.createdSessionId });
         setPendingVerification(false);
         setShowVerificationModal(true);
