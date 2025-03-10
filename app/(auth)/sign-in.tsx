@@ -23,7 +23,6 @@ const SignIn = () => {
   const onSignInPress = async () => {
     if (!isLoaded) return;
 
-    sessionStorage.clear();
     // Start the sign-in process using the email and password provided
     try {
       const signInAttempt = await signIn.create({
