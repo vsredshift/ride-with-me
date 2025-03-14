@@ -35,16 +35,15 @@ const TabLayout = () => (
       tabBarStyle: {
         backgroundColor: "#333333",
         borderRadius: 50,
-        paddingBottom: 0,
+        paddingBottom: 25,
         overflow: "hidden",
         marginHorizontal: 20,
-        marginBottom: 20,
-        height: 78,
+        marginBottom: 10,
+        minHeight: 60,
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
         flexDirection: "row",
-        position: "absolute",
       },
     }}
   >
