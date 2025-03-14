@@ -26,6 +26,8 @@ const MapV2 = () => {
   const [markers, setMarkers] = useState<MarkerData[]>([]);
 
   useEffect(() => {
+    setDrivers(drivers);
+
     if (Array.isArray(drivers)) {
       if (!userLatitude || !userLongitude) return;
 
@@ -34,7 +36,6 @@ const MapV2 = () => {
         userLatitude,
         userLongitude,
       });
-      console.log(region)
 
       setMarkers(newMarkers);
     }
@@ -50,6 +51,7 @@ const MapV2 = () => {
       showsUserLocation={true}
       userInterfaceStyle="light"
       region={region}
+      initialRegion={region}
     >
       {markers.map((marker) => (
         <Marker
@@ -71,7 +73,7 @@ const MapV2 = () => {
 const styles = StyleSheet.create({
   mapview: {
     width: "100%",
-    height: 300,
+    height: "100%",
   },
 });
 

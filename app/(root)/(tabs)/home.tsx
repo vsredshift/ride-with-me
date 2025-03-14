@@ -22,6 +22,7 @@ import GoogleTextInput from "@/components/GoogleTextInput";
 import { icons, images } from "@/constants";
 import { recentRides } from "@/lib/data";
 import { useLocationStore } from "@/store";
+import { router } from "expo-router";
 
 const Home = () => {
   const { setUserLocation, setDestinationLocation } = useLocationStore();
@@ -56,7 +57,15 @@ const Home = () => {
   }, []);
 
   const handleSignOut = () => {};
-  const handleDestinationPress = () => {};
+  const handleDestinationPress = (location: {
+    latitude: number;
+    longitude: number;
+    address: string;
+  }) => {
+    setDestinationLocation(location);
+
+    router.push("/(root)/find-ride");
+  };
 
   return (
     <SafeAreaView className="bg-general-500">
