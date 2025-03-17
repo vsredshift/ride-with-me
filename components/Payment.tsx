@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
-import { Alert, View } from "react-native";
+import { Alert, Image, View, Text } from "react-native";
 import { PaymentSheetError, useStripe } from "@stripe/stripe-react-native";
 import CustomButton from "./CustomButton";
 import { fetchAPI } from "@/lib/fetch";
 import { PaymentProps } from "@/types/type";
+import { useLocationStore } from "@/store";
+import { useAuth } from "@clerk/clerk-expo";
+import ReactNativeModal from "react-native-modal";
+import { images } from "@/constants";
+import { router } from "expo-router";
 
 const Payment = ({
   fullName,
@@ -13,15 +18,37 @@ const Payment = ({
   rideTime,
 }: PaymentProps) => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { userId } = useAuth();
   const [success, setSuccess] = useState<boolean>(false);
+
+  const {
+    userAddress,
+    userLatitude,
+    userLongitude,
+    destinationAddress,
+    destinationLatitude,
+    destinationLongitude,
+  } = useLocationStore();
+
+  const openPaymentSheet = async () => {
+    await initialisePaymentSheet();
+
+    const { error } = await presentPaymentSheet();
+
+    if (error) {
+      Alert.alert(`Error code: ${error.code}`, error.message);
+    } else {
+      setSuccess(true);
+    }
+  };
 
   const initialisePaymentSheet = async () => {
     const { error } = await initPaymentSheet({
       merchantDisplayName: "Ride With Me Inc.",
       intentConfiguration: {
         mode: {
-          amount: 1099,
-          currencyCode: "USD",
+          amount: parseInt(amount) * 100,
+          currencyCode: "usd",
         },
         confirmHandler: async (
           paymentMethod,
@@ -59,35 +86,38 @@ const Payment = ({
             });
 
             if (result.client_secret) {
+              await fetchAPI("/(api)/ride/create", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  origin_address: userAddress,
+                  destination_address: destinationAddress,
+                  origin_latitude: userLatitude,
+                  origin_longitude: userLongitude,
+                  destination_latitude: destinationLatitude,
+                  destination_longitude: destinationLongitude,
+                  ride_time: rideTime.toFixed(0),
+                  fare_price: parseInt(amount) * 100,
+                  payment_status: "paid",
+                  driver_id: driverId,
+                  user_id: userId,
+                }),
+              });
+
+              intentCreationCallback({
+                clientSecret: result.client_secret,
+              });
             }
           }
         },
       },
+      returnURL: "myapp://book-ride",
     });
+
     if (error) {
       console.log(error.message);
-    }
-  };
-
-  const fetchPublishableKey = async () => {
-    // const key = await fetchKey();
-    // setPublishableKey(key);
-  };
-
-  useEffect(() => {
-    fetchPublishableKey();
-  }, []);
-
-  const openPaymentSheet = async () => {
-    await initialisePaymentSheet();
-    const { error } = await presentPaymentSheet();
-
-    if (error) {
-      if (error.code === PaymentSheetError.Canceled) {
-        Alert.alert(`Error code: ${error.code}`, error.message);
-      } else {
-        setSuccess(true);
-      }
     }
   };
 
@@ -98,6 +128,32 @@ const Payment = ({
         className="mt-10"
         onPress={openPaymentSheet}
       />
+
+      <ReactNativeModal
+        isVisible={success}
+        onBackButtonPress={() => setSuccess(false)}
+      >
+        <View className="flex flex-col items-center justify-center bg-white p-7 rounded-2xl">
+          <Image source={images.check} className="w-28 h-28 mt-5" />
+          <Text className="text-2xl text-center font-JakartaBold mt-5">
+            Ride Booked!
+          </Text>
+
+          <Text className="text-md text-general-200 text-center font-JakartaMedium mt-3">
+            Thank you for your booking. Your ride has been reserved. Enjoy your
+            trip.
+          </Text>
+
+          <CustomButton
+            title="Back Home"
+            onPress={() => {
+              setSuccess(false);
+              router.push("/(root)/(tabs)/home");
+            }}
+            className="mt-5"
+          />
+        </View>
+      </ReactNativeModal>
     </View>
   );
 };

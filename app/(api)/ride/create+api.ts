@@ -2,6 +2,7 @@ import { neon } from "@neondatabase/serverless";
 
 export async function POST(request: Request) {
   try {
+    console.log("REQUEST: ", request)
     const body = await request.json();
     const {
       origin_address,
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const sql = neon(`${process.env.EXPO_PUBLIC_DATABASE_URL}`);
+    const sql = neon(`${process.env.DATABASE_URL}`);
 
     const response = await sql`
         INSERT INTO rides ( 
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
         RETURNING *;
         `;
 
+    console.log(response[0]);
     return Response.json({ data: response[0] }, { status: 201 });
   } catch (error) {
     console.error("Error inserting data into recent_rides:", error);

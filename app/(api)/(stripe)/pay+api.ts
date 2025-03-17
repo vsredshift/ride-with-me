@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     );
 
     const result = await stripe.paymentIntents.confirm(payment_intent_id, {
-      payment_method: payment_method_id,
+      payment_method: paymentMethod.id,
     });
 
     return new Response(
