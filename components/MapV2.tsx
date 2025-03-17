@@ -1,13 +1,25 @@
-import { icons } from "@/constants";
-import { drivers } from "@/lib/data";
-import { calculateRegion, generateMarkersFromData } from "@/lib/map";
+import { icons, images } from "@/constants";
+import { useFetch } from "@/lib/fetch";
+import {
+  calculateDriverTimes,
+  calculateRegion,
+  fetchRoutePolyline,
+  generateMarkersFromData,
+} from "@/lib/map";
 import { useDriverStore, useLocationStore } from "@/store";
-import { MarkerData } from "@/types/type";
+import { Driver, MarkerData } from "@/types/type";
 import { useEffect, useState } from "react";
-import { StyleSheet } from "react-native";
-import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from "react-native-maps";
 
 const MapV2 = () => {
+  const { data: drivers, loading, error } = useFetch<Driver[]>("/(api)/driver");
+  const { selectedDriver, setDrivers } = useDriverStore();
+  const [markers, setMarkers] = useState<MarkerData[]>([]);
+  const [route, setRoute] = useState<{ latitude: number; longitude: number }[]>(
+    []
+  );
+
   const {
     userLatitude,
     userLongitude,
@@ -22,15 +34,9 @@ const MapV2 = () => {
     destinationLongitude,
   });
 
-  const { selectedDriver, setDrivers } = useDriverStore();
-  const [markers, setMarkers] = useState<MarkerData[]>([]);
-
+  // Generate driver markers
   useEffect(() => {
-    setDrivers(drivers);
-
-    if (Array.isArray(drivers)) {
-      if (!userLatitude || !userLongitude) return;
-
+    if (Array.isArray(drivers) && userLatitude && userLongitude) {
       const newMarkers = generateMarkersFromData({
         data: drivers,
         userLatitude,
@@ -39,7 +45,58 @@ const MapV2 = () => {
 
       setMarkers(newMarkers);
     }
-  }, [drivers]);
+  }, [drivers, userLatitude, userLongitude]);
+
+  // Calculate driver times and update store
+  useEffect(() => {
+    if (markers.length > 0 && destinationLatitude && destinationLongitude) {
+      calculateDriverTimes({
+        markers,
+        userLatitude,
+        userLongitude,
+        destinationLatitude,
+        destinationLongitude,
+      }).then((drivers) => {
+        setDrivers(drivers as MarkerData[]);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [markers, destinationLatitude, destinationLongitude]);
+
+  // Fetch route polyline when user & destination are set
+  useEffect(() => {
+    if (
+      userLatitude &&
+      userLongitude &&
+      destinationLatitude &&
+      destinationLongitude
+    ) {
+      fetchRoutePolyline(
+        userLatitude,
+        userLongitude,
+        destinationLatitude,
+        destinationLongitude
+      )
+        .then((polyline) => setRoute(polyline))
+        .catch((error) => console.error("Failed to fetch route: ", error));
+    }
+  }, [destinationLatitude, destinationLongitude, userLatitude, userLongitude]);
+
+  if (loading || !userLatitude || !userLongitude) {
+    return (
+      <View className="flex justify-between items-center w-full">
+        <ActivityIndicator size="small" color="#000" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View className="flex justify-between items-center w-full">
+        <Text>Error: {error}</Text>
+      </View>
+    );
+  }
 
   return (
     <MapView
@@ -62,10 +119,28 @@ const MapV2 = () => {
           }}
           title={marker.title}
           image={
-            selectedDriver === marker.id ? icons.selectedMarker : icons.marker
+            selectedDriver === +marker.id ? icons.selectedMarker : icons.marker
           }
         />
       ))}
+
+      {destinationLatitude && destinationLongitude && (
+        <>
+          <Marker
+            key="destination"
+            coordinate={{
+              latitude: destinationLatitude,
+              longitude: destinationLongitude,
+            }}
+            title="Destination"
+            image={icons.pin}
+          />
+
+          {route.length > 0 && (
+            <Polyline coordinates={route} strokeWidth={4} strokeColor="blue" />
+          )}
+        </>
+      )}
     </MapView>
   );
 };

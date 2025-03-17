@@ -1,7 +1,6 @@
 import CustomButton from "@/components/CustomButton";
 import DriverCard from "@/components/DriverCard";
 import RideLayout from "@/components/RideLayout";
-import { drivers } from "@/lib/data";
 import { useDriverStore } from "@/store";
 import { router } from "expo-router";
 import { FlatList, View } from "react-native";

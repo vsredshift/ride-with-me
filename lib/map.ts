@@ -1,6 +1,6 @@
 import { Driver, MarkerData } from "@/types/type";
 
-const directionsAPI = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
+const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API;
 
 export const generateMarkersFromData = ({
   data,
@@ -93,29 +93,176 @@ export const calculateDriverTimes = async ({
   )
     return;
 
+  if (!apiKey) throw new Error("Google Maps API key is missing!");
+
   try {
     const timesPromises = markers.map(async (marker) => {
+      // fetch time from marker to user
       const responseToUser = await fetch(
-        `https://maps.googleapis.com/maps/api/directions/json?origin=${marker.latitude},${marker.longitude}&destination=${userLatitude},${userLongitude}&key=${directionsAPI}`
+        `https://routes.googleapis.com/directions/v2:computeRoutes`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": apiKey,
+            "X-Goog-FieldMask": "routes.duration",
+          },
+          body: JSON.stringify({
+            origin: {
+              location: {
+                latLng: {
+                  latitude: marker.latitude,
+                  longitude: marker.longitude,
+                },
+              },
+            },
+            destination: {
+              location: {
+                latLng: {
+                  latitude: userLatitude,
+                  longitude: userLongitude,
+                },
+              },
+            },
+            travelMode: "Drive",
+          }),
+        }
       );
+
       const dataToUser = await responseToUser.json();
-      const timeToUser = dataToUser.routes[0].legs[0].duration.value; // Time in seconds
+      const timeToUser = dataToUser.routes?.[0]?.duration || 0;
 
+      // Fetch time from user to destination
       const responseToDestination = await fetch(
-        `https://maps.googleapis.com/maps/api/directions/json?origin=${userLatitude},${userLongitude}&destination=${destinationLatitude},${destinationLongitude}&key=${directionsAPI}`
+        `https://routes.googleapis.com/directions/v2:computeRoutes`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": apiKey,
+            "X-Goog-FieldMask": "routes.duration",
+          },
+          body: JSON.stringify({
+            origin: {
+              location: {
+                latLng: {
+                  latitude: userLatitude,
+                  longitude: userLongitude,
+                },
+              },
+            },
+            destination: {
+              location: {
+                latLng: {
+                  latitude: destinationLatitude,
+                  longitude: destinationLongitude,
+                },
+              },
+            },
+            travelMode: "Drive",
+          }),
+        }
       );
+
       const dataToDestination = await responseToDestination.json();
-      const timeToDestination =
-        dataToDestination.routes[0].legs[0].duration.value; // Time in seconds
+      const timeToDestination = dataToDestination.routes?.[0]?.duration || 0;
 
-      const totalTime = (timeToUser + timeToDestination) / 60; // Total time in minutes
-      const price = (totalTime * 0.5).toFixed(2); // Calculate price based on time
+      // Calculate total time and price
+      const totalTime = (
+        (parseInt(timeToUser) + parseInt(timeToDestination)) /
+        60
+      ).toFixed(2);
+      const price = (+totalTime * 0.5).toFixed(2);
 
-      return { ...marker, time: totalTime, price };
+      return { ...marker, time: +totalTime, price };
     });
 
     return await Promise.all(timesPromises);
   } catch (error) {
     console.error("Error calculating driver times:", error);
   }
+};
+
+export const fetchRoutePolyline = async (
+  originLatitude: number,
+  originLongitude: number,
+  destinationLatitude: number,
+  destinationLongitude: number
+) => {
+  if (!apiKey) throw new Error("Google maps API key is missing");
+
+  try {
+    const response = await fetch(
+      "https://routes.googleapis.com/directions/v2:computeRoutes",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": apiKey,
+          "X-Goog-FieldMask": "routes.polyline.encodedPolyline",
+        },
+        body: JSON.stringify({
+          origin: {
+            location: {
+              latLng: {
+                latitude: originLatitude,
+                longitude: originLongitude,
+              },
+            },
+          },
+          destination: {
+            location: {
+              latLng: {
+                latitude: destinationLatitude,
+                longitude: destinationLongitude,
+              },
+            },
+          },
+          travelMode: "DRIVE",
+        }),
+      }
+    );
+
+    const data = await response.json();
+    const encodedPolyline = data.routes?.[0]?.polyline?.encodedPolyline;
+
+    if (!encodedPolyline) throw new Error("No polyline found in response");
+
+    return decodePolyline(encodedPolyline);
+  } catch (error) {
+    console.error("Error fetching polyline, ", error);
+    return [];
+  }
+};
+
+// Decode Google polyline into coordinates
+export const decodePolyline = (encoded: string) => {
+  let index = 0,
+    lat = 0,
+    lng = 0,
+    coordinates = [],
+    shift,
+    result,
+    byte;
+
+  while (index < encoded.length) {
+    shift = result = 0;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    lat += result & 1 ? ~(result >> 1) : result >> 1;
+
+    shift = result = 0;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    lng += result & 1 ? ~(result >> 1) : result >> 1;
+
+    coordinates.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
+  }
+  return coordinates;
 };
