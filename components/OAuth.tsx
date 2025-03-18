@@ -1,9 +1,48 @@
 import { Image, Text, View } from "react-native";
 import CustomButton from "./CustomButton";
 import { icons } from "@/constants";
+import { useSSO } from "@clerk/clerk-expo";
+import * as WebBrowser from "expo-web-browser";
+import * as AuthSession from "expo-auth-session";
+import { useCallback, useEffect } from "react";
+
+export const useWarmUpBroswer = () => {
+  useEffect(() => {
+    void WebBrowser.warmUpAsync();
+    return () => {
+      void WebBrowser.coolDownAsync();
+    };
+  }, []);
+};
+
+WebBrowser.maybeCompleteAuthSession();
 
 const OAuth = () => {
-  const handleGoogleSignIn = async () => {};
+  useWarmUpBroswer();
+
+  const { startSSOFlow } = useSSO();
+
+  const handleGoogleSignIn = useCallback(async () => {
+    console.log("Entering google sign in...");
+    try {
+      const { createdSessionId, setActive, signIn, signUp } =
+        await startSSOFlow({
+          strategy: "oauth_google",
+          redirectUrl: AuthSession.makeRedirectUri({
+            scheme: "myapp",
+            path: "/(root)/(tabs)/home",
+          }),
+        });
+
+      if (createdSessionId) {
+        setActive!({ session: createdSessionId });
+      } else {
+        console.log("SignIn", signIn, " SignUp", signUp);
+      }
+    } catch (error) {
+      console.error(JSON.stringify(error, null, 2));
+    }
+  }, []);
 
   return (
     <View>
