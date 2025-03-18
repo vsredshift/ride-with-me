@@ -172,9 +172,14 @@ export const calculateDriverTimes = async ({
         (parseInt(timeToUser) + parseInt(timeToDestination)) /
         60
       ).toFixed(2);
-      const price = (+totalTime * 0.5).toFixed(2);
+      const price = (+totalTime * 12).toFixed(0);
 
-      return { ...marker, time: +totalTime, price };
+      return {
+        ...marker,
+        time: +totalTime,
+        price,
+        timeToUser,
+      };
     });
 
     return await Promise.all(timesPromises);

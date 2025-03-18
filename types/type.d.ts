@@ -23,6 +23,7 @@ declare interface MarkerData {
   last_name: string;
   time?: number;
   price?: string;
+  time_to_user?: number;
 }
 
 declare interface MapProps {
