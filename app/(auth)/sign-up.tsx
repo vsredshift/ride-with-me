@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, ScrollView, Text, View } from "react-native";
+import { Alert, Image, ScrollView, Text, View } from "react-native";
 import { ReactNativeModal } from "react-native-modal";
 import { Link, useRouter } from "expo-router";
 import { useSignUp } from "@clerk/clerk-expo";
@@ -76,6 +76,7 @@ const SignUpScreen = () => {
       }
     } catch (error) {
       console.log(JSON.stringify(error, null, 2));
+      Alert.alert("Error signing up.");
     }
   };
 
@@ -135,7 +136,10 @@ const SignUpScreen = () => {
           </Link>
         </View>
 
-        <ReactNativeModal isVisible={pendingVerification}>
+        <ReactNativeModal
+          isVisible={pendingVerification}
+          onBackdropPress={() => setPendingVerification(false)}
+        >
           <View className="bg-white px-7 py-9 rounded-2xl min-h-[300px]">
             <Text className="text-2xl font-JakartaExtraBold mb-2">
               Verification

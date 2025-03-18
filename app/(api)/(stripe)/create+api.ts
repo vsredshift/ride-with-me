@@ -44,8 +44,8 @@ export async function POST(request: Request) {
 
   return new Response(
     JSON.stringify({
-      paymentIntent,
-      ephemeralKey,
+      paymentIntent: paymentIntent,
+      ephemeralKey: ephemeralKey,
       customer: customer.id,
     }),
   );

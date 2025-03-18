@@ -31,7 +31,7 @@ const Payment = ({
   } = useLocationStore();
 
   const openPaymentSheet = async () => {
-    await initialisePaymentSheet();
+    await initializePaymentSheet();
 
     const { error } = await presentPaymentSheet();
 
@@ -42,82 +42,65 @@ const Payment = ({
     }
   };
 
-  const initialisePaymentSheet = async () => {
+  const initializePaymentSheet = async () => {
+    const { paymentIntent, ephemeralKey, customer } = await fetchAPI(
+      "/(api)/(stripe)/create",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: fullName || email.split("@")[0],
+          email,
+          amount,
+        }),
+      }
+    );
+
     const { error } = await initPaymentSheet({
       merchantDisplayName: "Ride With Me Inc.",
-      intentConfiguration: {
-        mode: {
-          amount: parseInt(amount) * 100,
-          currencyCode: "usd",
-        },
-        confirmHandler: async (
-          paymentMethod,
-          shouldSavePaymentMethod,
-          intentCreationCallback
-        ) => {
-          const { paymentIntent, customer } = await fetchAPI(
-            "/(api)/(stripe)/create",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                name: fullName || email.split("@")[0],
-                email,
-                amount,
-                paymentMethod: paymentMethod.id,
-              }),
-            }
-          );
-
-          if (paymentIntent.client_secret) {
-            const { result } = await fetchAPI("/(api)/(stripe)/pay", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                payment_method_id: paymentMethod.id,
-                payment_intent_id: paymentIntent.id,
-                customer_id: customer,
-                client_secret: paymentIntent.client_secret,
-              }),
-            });
-
-            if (result.client_secret) {
-              await fetchAPI("/(api)/ride/create", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  origin_address: userAddress,
-                  destination_address: destinationAddress,
-                  origin_latitude: userLatitude,
-                  origin_longitude: userLongitude,
-                  destination_latitude: destinationLatitude,
-                  destination_longitude: destinationLongitude,
-                  ride_time: rideTime.toFixed(0),
-                  fare_price: parseInt(amount) * 100,
-                  payment_status: "paid",
-                  driver_id: driverId,
-                  user_id: userId,
-                }),
-              });
-
-              intentCreationCallback({
-                clientSecret: result.client_secret,
-              });
-            }
-          }
-        },
-      },
+      paymentIntentClientSecret: paymentIntent.client_secret,
+      customerId: customer,
+      customerEphemeralKeySecret: ephemeralKey.secret,
       returnURL: "myapp://book-ride",
     });
 
     if (error) {
-      console.log(error.message);
+      console.error("PaymentSheet Init Error:", error);
+    }
+
+    // const { result } = await fetchAPI("/(api)/(stripe)/pay", {
+    //   method: "POST",
+    //   headers: {
+    //     "Content-Type": "application/json",
+    //   },
+    //   body: JSON.stringify({
+    //     payment_method_id: 
+    //     payment_intent_id: paymentIntent.id,
+    //     customer_id: customer,
+    //     client_secret: paymentIntent.client_secret,
+    //   }),
+    // });
+
+    if (paymentIntent.client_secret) {
+      await fetchAPI("/(api)/ride/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          origin_address: userAddress,
+          destination_address: destinationAddress,
+          origin_latitude: userLatitude,
+          origin_longitude: userLongitude,
+          destination_latitude: destinationLatitude,
+          destination_longitude: destinationLongitude,
+          ride_time: rideTime.toFixed(0),
+          fare_price: parseInt(amount) * 100,
+          payment_status: "paid",
+          driver_id: driverId,
+          user_id: userId,
+        }),
+      });
     }
   };
 

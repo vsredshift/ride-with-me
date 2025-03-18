@@ -13,22 +13,23 @@ import {
   requestForegroundPermissionsAsync,
   reverseGeocodeAsync,
 } from "expo-location";
-import { useUser } from "@clerk/clerk-expo";
+import { SignedOut, useAuth, useUser } from "@clerk/clerk-expo";
 import RideCard from "@/components/RideCard";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import Map from "@/components/Map";
 import MapV2 from "@/components/MapV2";
 import GoogleTextInput from "@/components/GoogleTextInput";
 import { icons, images } from "@/constants";
-import { recentRides } from "@/lib/data";
 import { useLocationStore } from "@/store";
 import { router } from "expo-router";
+import { useFetch } from "@/lib/fetch";
 
 const Home = () => {
   const { setUserLocation, setDestinationLocation } = useLocationStore();
   const [hasPermissions, setHasPermissions] = useState(false);
   const { user } = useUser();
-  const loading = false;
+  const { signOut } = useAuth();
+  const { data: recentRides, loading } = useFetch(`/(api)/ride/${user?.id}`);
 
   useEffect(() => {
     const requestLocation = async () => {
@@ -39,7 +40,7 @@ const Home = () => {
       }
 
       const location = await getCurrentPositionAsync({});
-      console.log(location);
+      console.log("Location", location);
 
       const address = await reverseGeocodeAsync({
         latitude: location.coords?.latitude,
@@ -56,7 +57,11 @@ const Home = () => {
     requestLocation();
   }, []);
 
-  const handleSignOut = () => {};
+  const handleSignOut = () => {
+    signOut();
+    router.replace("/(auth)/sign-in");
+  };
+
   const handleDestinationPress = (location: {
     latitude: number;
     longitude: number;

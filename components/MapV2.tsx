@@ -1,4 +1,4 @@
-import { icons, images } from "@/constants";
+import { icons } from "@/constants";
 import { useFetch } from "@/lib/fetch";
 import {
   calculateDriverTimes,
@@ -27,13 +27,6 @@ const MapV2 = () => {
     destinationLongitude,
   } = useLocationStore();
 
-  const region = calculateRegion({
-    userLatitude,
-    userLongitude,
-    destinationLatitude,
-    destinationLongitude,
-  });
-
   // Generate driver markers
   useEffect(() => {
     if (Array.isArray(drivers) && userLatitude && userLongitude) {
@@ -42,7 +35,6 @@ const MapV2 = () => {
         userLatitude,
         userLongitude,
       });
-
       setMarkers(newMarkers);
     }
   }, [drivers, userLatitude, userLongitude]);
@@ -82,7 +74,14 @@ const MapV2 = () => {
     }
   }, [destinationLatitude, destinationLongitude, userLatitude, userLongitude]);
 
-  if (loading || !userLatitude || !userLongitude) {
+  const region = calculateRegion({
+    userLatitude,
+    userLongitude,
+    destinationLatitude,
+    destinationLongitude,
+  });
+
+  if (loading) {
     return (
       <View className="flex justify-between items-center w-full">
         <ActivityIndicator size="small" color="#000" />
